@@ -1,0 +1,40 @@
+# .github/workflows/guideline_bot.yml
+name: Guideline Bot
+
+on:
+  schedule:
+    - cron: "37 0 * * 1"  # 毎週月曜 JST 09:37
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          GUIDELINE_WEBHOOK_URL: ${{ secrets.GUIDELINE_WEBHOOK_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python guideline_bot.py
+
+      - name: Save notified PMIDs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add notified_guideline_pmids.json || true
+          git diff --staged --quiet || git commit -m "Update notified guideline PMIDs [skip ci]"
+          git push || true
